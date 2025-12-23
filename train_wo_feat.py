@@ -476,7 +476,7 @@ plt.plot(range(1, len(train_losses) + 1), train_losses, label="Train Loss")
 plt.plot(range(1, len(val_losses) + 1), val_losses, label="Validation Loss")
 plt.xlabel("Epoch")
 plt.ylabel("Loss")
-plt.title("Loss Curves")
+plt.title("Learning Curves")
 plt.legend()
 plt.grid(True)
 
