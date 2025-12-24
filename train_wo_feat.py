@@ -413,6 +413,9 @@ val_losses = []
 train_hits = []
 val_hits = []
 test_hits = []
+best_model = None
+best_pred = None
+best_emb = None
 
 print(f'number of parameters: {sum(p.numel() for p in model.parameters()) + sum(p.numel() for p in pred.parameters()) + sum(p.numel() for p in embedding.parameters())}')
 
@@ -462,6 +465,9 @@ for epoch in range(args.epochs):
             best_val = valid_results[args.metric]
             best_epoch = epoch
             final_test_result = test_results
+            best_model = model.state_dict()
+            best_pred = pred.state_dict()
+            best_emb = embedding.state_dict()
         elif args.dataset != 'ogbl-ddi':
             best_val = valid_results[args.metric]
             best_epoch = epoch
@@ -477,56 +483,11 @@ for epoch in range(args.epochs):
         'epoch': epoch
     })
 
-# plot_dot_product_dist(graph.ndata['feat'])
-
-# Plot and log learning curve
-plt.figure(figsize=(10, 6))
-plt.subplot(1, 2, 1)
-plt.plot(range(1, len(train_losses) + 1), train_losses, label="Train Loss")
-plt.plot(range(1, len(val_losses) + 1), val_losses, label="Validation Loss")
-plt.xlabel("Epoch")
-plt.ylabel("Loss")
-plt.title("Learning Curves")
-plt.legend()
-plt.grid(True)
-
-plt.subplot(1, 2, 2)
-plt.plot(range(1, len(train_hits) + 1), train_hits, label="Train Hit")
-plt.plot(range(1, len(val_hits) + 1), val_hits, label="Validation Hit")
-plt.plot(range(1, len(test_hits) + 1), test_hits, label="Test Hit")
-plt.xlabel("Epoch")
-plt.ylabel(f"{args.metric}")
-plt.title("Performance Curves")
-plt.legend()
-plt.grid(True)
-
-plt.tight_layout()
-plt.savefig("learning_curve.png")
-wandb.log({"learning_curve": wandb.Image("learning_curve.png")})
-print("✅ Learning curve saved and logged to wandb")
-
-# Save model if requested
-if args.save_model:
-    save_dir = 'saved_models'
-    os.makedirs(save_dir, exist_ok=True)
-    
-    run_name = args.wandb_run_name if args.wandb_run_name else 'default'
-    filename = f'{args.dataset}_{args.model}_{run_name}.pt'
-    save_path = os.path.join(save_dir, filename)
-    
-    # Save state dict
-    torch.save({
-        'model': model.state_dict(),
-        'predictor': pred.state_dict(),
-        'embedding': embedding.state_dict(),
-        'args': args
-    }, save_path)
-    print(f"✅ Model checkpoint saved to: {save_path}")
-    
-    # Upload to HuggingFace
-    if hasattr(args, 'hf_repo_id') and args.hf_repo_id:
-        upload_to_huggingface(save_path, args)
-
-print(f"Test hit: {final_test_result[args.metric]:.4f}")
-wandb.log({'final_test_hit': final_test_result[args.metric]})
-wandb.finish()
+train_losses = []
+val_losses = []
+train_hits = []
+val_hits = []
+test_hits = []
+best_model = None
+best_pred = None
+best_emb = None

@@ -152,6 +152,48 @@ def train(model, g, train_pos_edge, optimizer, neg_sampler, pred, embedding=None
 
     return total_loss / len(dataloader)
 
+def compute_val_loss_collab(model, g, pos_val_edge, pred, neg_sampler, embedding=None):
+    """Validation loss (train-like) for ogbl-collab: sample negatives per pos-batch like train."""
+    model.eval()
+    pred.eval()
+
+    with torch.no_grad():
+        xemb = torch.cat((embedding.weight, g.ndata['feat']), dim=1) if embedding is not None else g.ndata['feat']
+        h = model(g, xemb, g.edata['weight'])
+
+        loader = DataLoader(range(pos_val_edge.size(0)), args.batch_size, shuffle=False)
+        total_loss = 0.0
+        total_pos = 0
+
+        for edge_index in loader:
+            pos_edge = pos_val_edge[edge_index]  # (B, 2)
+            B = pos_edge.size(0)
+
+            # GlobalUniform: tạo B * num_neg negative pairs :contentReference[oaicite:1]{index=1}
+            neg_train_edge = neg_sampler(g, pos_edge.t()[0])
+            neg_train_edge = torch.stack(neg_train_edge, dim=0)
+            neg_train_edge = neg_train_edge.t()
+            neg_edge = neg_train_edge
+            pos_score = pred(h[pos_edge[:, 0]], h[pos_edge[:, 1]])
+            neg_score = pred(h[neg_edge[:, 0]], h[neg_edge[:, 1]])
+
+            if args.loss == 'auc':
+                loss = auc_loss(pos_score, neg_score, args.num_neg)
+            elif args.loss == 'hauc':
+                loss = hinge_auc_loss(pos_score, neg_score, args.num_neg)
+            elif args.loss == 'rank':
+                loss = log_rank_loss(pos_score, neg_score, args.num_neg)
+            else:
+                # BCE dạng negative sampling (logsigmoid) đúng “link prediction CE loss” :contentReference[oaicite:2]{index=2}
+                pos_loss = -F.logsigmoid(pos_score).mean()
+                neg_loss = -F.logsigmoid(-neg_score).mean()
+                loss = pos_loss + neg_loss
+
+            total_loss += loss.item() * B
+            total_pos += B
+
+    return total_loss / total_pos
+
 def test(model, g, pos_test_edge, neg_test_edge, pred, embedding=None):
     model.eval()
     pred.eval()
@@ -307,6 +349,14 @@ best_epoch = 0
 losses = []
 valid_list = []
 test_list = []
+train_losses = []
+val_losses = []
+train_hits = []
+val_hits = []
+test_hits = []
+best_model = None
+best_pred = None
+best_emb = None
 
 if embedding is not None:
     print(f'number of parameters: {sum(p.numel() for p in model.parameters()) + sum(p.numel() for p in pred.parameters()) + sum(p.numel() for p in embedding.parameters())}')
@@ -317,6 +367,9 @@ tot_time = 0
 for epoch in range(args.epochs):
     st = time.time()
     loss = train(model, graph, train_pos_edge, optimizer, neg_sampler, pred, embedding)
+    train_losses.append(loss)
+    val_loss = compute_val_loss_collab(model, graph, valid_pos_edge, pred, neg_sampler, embedding)
+    val_losses.append(val_loss)
     print(f"Epoch {epoch}, Time: {time.time()-st:.4f}", flush=True)
     tot_time += time.time() - st
     losses.append(loss)
@@ -347,7 +400,7 @@ for epoch in range(args.epochs):
         final_test_result = test_results
     if epoch - best_epoch >= 200:
         break
-    print(f"Epoch {epoch}, Loss: {loss:.4f}, Train {args.metric}: {train_results[args.metric]:.4f}, Valid {args.metric}: {valid_results[args.metric]:.4f}, Test {args.metric}: {test_results[args.metric]:.4f}")
+    print(f"Epoch {epoch}, Loss: {loss:.4f}, val loss: {val_loss:.4f}, Train {args.metric}: {train_results[args.metric]:.4f}, Valid {args.metric}: {valid_results[args.metric]:.4f}, Test {args.metric}: {test_results[args.metric]:.4f}")
     wandb.log({'loss': loss, 'train_hit': train_results[args.metric], 'valid_hit': valid_results[args.metric], 'test_hit': test_results[args.metric]})
 
 print(f'total time: {tot_time:.4f}')
@@ -836,6 +889,10 @@ for epoch in range(args.epochs):
         best_val = valid_results[args.metric]
         best_epoch = epoch
         final_test_result = test_results
+        best_model = model.state_dict()
+        best_pred = pred.state_dict()
+        if embedding is not None:
+            best_emb = embedding.state_dict()
     if epoch - best_epoch >= 200:
         break
     print(f"Epoch {epoch}, Loss: {loss:.4f}, Train {args.metric}: {train_results[args.metric]:.4f}, Valid {args.metric}: {valid_results[args.metric]:.4f}, Test {args.metric}: {test_results[args.metric]:.4f}")
@@ -887,12 +944,12 @@ if args.save_model:
     
     # Save state dict
     checkpoint = {
-        'model': model.state_dict(),
-        'predictor': pred.state_dict(),
+        'model': best_model,
+        'predictor': best_pred,
         'args': args
     }
     if embedding is not None:
-        checkpoint['embedding'] = embedding.state_dict()
+        checkpoint['embedding'] = best_emb
     
     torch.save(checkpoint, save_path)
     print(f"✅ Model checkpoint saved to: {save_path}")
