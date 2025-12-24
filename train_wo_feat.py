@@ -149,32 +149,42 @@ def train(model, g, train_pos_edge, optimizer, neg_sampler, pred):
 
     return total_loss / len(dataloader)
 
-def compute_val_loss(model, g, pos_val_edge, neg_val_edge, pred):
-    """Compute validation loss"""
+def compute_val_loss(model, g, val_pos_edge, neg_sampler, pred):
     model.eval()
     pred.eval()
+
+    total_loss = 0.0
+    total_pos = 0  # để average đúng theo số pos (không phụ thuộc batch cuối)
+
     with torch.no_grad():
+        # Val thì không cần maskinput theo batch (vì val_pos_edge không nằm trong train graph -> không leak)
+        # Chỉ cần embed 1 lần cho nhanh
         h = model(g, g.ndata['feat'])
-        dataloader = DataLoader(range(pos_val_edge.size(0)), args.batch_size)
-        total_loss = 0
-        for _, edge_index in enumerate(dataloader):
-            pos_edge = pos_val_edge[edge_index]
-            neg_edge = neg_val_edge[edge_index] if edge_index.max() < neg_val_edge.size(0) else neg_val_edge[:len(edge_index)]
-            
+
+        loader = DataLoader(range(val_pos_edge.size(0)), args.batch_size, shuffle=False)
+        for edge_index in loader:
+            pos_edge = val_pos_edge[edge_index]          # (B, 2)
+
+            # sample negatives giống train:
+            # nếu code train của bạn chạy được thì cứ dùng y hệt dòng dưới
+            neg_train_edge = neg_sampler(g, pos_edge.t()[0])
+            neg_train_edge = torch.stack(neg_train_edge, dim=0)
+            neg_train_edge = neg_train_edge.t()
+            neg_edge = neg_train_edge
+
             pos_score = pred(h[pos_edge[:, 0]], h[pos_edge[:, 1]])
             neg_score = pred(h[neg_edge[:, 0]], h[neg_edge[:, 1]])
-            
-            if args.loss == 'auc':
-                loss = auc_loss(pos_score, neg_score, args.num_neg)
-            elif args.loss == 'hauc':
-                loss = hinge_auc_loss(pos_score, neg_score, args.num_neg)
-            elif args.loss == 'rank':
-                loss = log_rank_loss(pos_score, neg_score, args.num_neg)
-            else:
-                loss = F.binary_cross_entropy_with_logits(pos_score, torch.ones_like(pos_score)) + F.binary_cross_entropy_with_logits(neg_score, torch.zeros_like(neg_score))
-            
-            total_loss += loss.item()
-    return total_loss / len(dataloader)
+
+            loss = (
+                F.binary_cross_entropy_with_logits(pos_score, torch.ones_like(pos_score)) +
+                F.binary_cross_entropy_with_logits(neg_score, torch.zeros_like(neg_score))
+            )
+
+            total_loss += loss.item() * pos_edge.size(0)
+            total_pos  += pos_edge.size(0)
+
+    return total_loss / total_pos
+
 
 def test(model, g, pos_test_edge, neg_test_edge, pred):
     model.eval()
@@ -412,7 +422,7 @@ for epoch in range(args.epochs):
     train_losses.append(loss)
     
     # Compute validation loss
-    val_loss = compute_val_loss(model, graph, valid_pos_edge, valid_neg_edge, pred)
+    val_loss = compute_val_loss(model, graph, valid_pos_edge, neg_sampler, pred)
     val_losses.append(val_loss)
     
     if epoch % args.interval == 0 and args.step_lr_decay:
@@ -457,7 +467,7 @@ for epoch in range(args.epochs):
             best_epoch = epoch
             final_test_result = test_results
 
-    print(f"Epoch {epoch}, Loss: {loss:.4f}, Train hit: {train_results[args.metric]:.4f}, Valid hit: {valid_results[args.metric]:.4f}, Test hit: {test_results[args.metric]:.4f}")
+    print(f"Epoch {epoch}, Loss: {loss:.4f}, val loss: {val_loss:.4f}, Train hit: {train_results[args.metric]:.4f}, Valid hit: {valid_results[args.metric]:.4f}, Test hit: {test_results[args.metric]:.4f}")
     wandb.log({
         'train_loss': loss,
         'val_loss': val_loss,
