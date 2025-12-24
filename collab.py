@@ -152,6 +152,48 @@ def train(model, g, train_pos_edge, optimizer, neg_sampler, pred, embedding=None
 
     return total_loss / len(dataloader)
 
+def compute_val_loss_collab(model, g, pos_val_edge, pred, neg_sampler, embedding=None):
+    """Validation loss (train-like) for ogbl-collab: sample negatives per pos-batch like train."""
+    model.eval()
+    pred.eval()
+
+    with torch.no_grad():
+        xemb = torch.cat((embedding.weight, g.ndata['feat']), dim=1) if embedding is not None else g.ndata['feat']
+        h = model(g, xemb, g.edata['weight'])
+
+        loader = DataLoader(range(pos_val_edge.size(0)), args.batch_size, shuffle=False)
+        total_loss = 0.0
+        total_pos = 0
+
+        for edge_index in loader:
+            pos_edge = pos_val_edge[edge_index]  # (B, 2)
+            B = pos_edge.size(0)
+
+            # GlobalUniform: tạo B * num_neg negative pairs :contentReference[oaicite:1]{index=1}
+            neg_train_edge = neg_sampler(g, pos_edge.t()[0])
+            neg_train_edge = torch.stack(neg_train_edge, dim=0)
+            neg_train_edge = neg_train_edge.t()
+            neg_edge = neg_train_edge
+            pos_score = pred(h[pos_edge[:, 0]], h[pos_edge[:, 1]])
+            neg_score = pred(h[neg_edge[:, 0]], h[neg_edge[:, 1]])
+
+            if args.loss == 'auc':
+                loss = auc_loss(pos_score, neg_score, args.num_neg)
+            elif args.loss == 'hauc':
+                loss = hinge_auc_loss(pos_score, neg_score, args.num_neg)
+            elif args.loss == 'rank':
+                loss = log_rank_loss(pos_score, neg_score, args.num_neg)
+            else:
+                # BCE dạng negative sampling (logsigmoid) đúng “link prediction CE loss” :contentReference[oaicite:2]{index=2}
+                pos_loss = -F.logsigmoid(pos_score).mean()
+                neg_loss = -F.logsigmoid(-neg_score).mean()
+                loss = pos_loss + neg_loss
+
+            total_loss += loss.item() * B
+            total_pos += B
+
+    return total_loss / total_pos
+
 def test(model, g, pos_test_edge, neg_test_edge, pred, embedding=None):
     model.eval()
     pred.eval()
@@ -177,36 +219,6 @@ def test(model, g, pos_test_edge, neg_test_edge, pred, embedding=None):
         for k in [20, 50, 100]:
             results[f'hits@{k}'] = eval_hits(pos_score, neg_score, k)[f'hits@{k}']
     return results
-
-def compute_val_loss(model, g, pos_val_edge, neg_val_edge, pred, embedding=None):
-    """Compute validation loss"""
-    model.eval()
-    pred.eval()
-    with torch.no_grad():
-        xemb = torch.cat((embedding.weight, g.ndata['feat']), dim=1) if embedding is not None else g.ndata['feat']
-        h = model(g, xemb, g.edata['weight'])
-        dataloader = DataLoader(range(min(pos_val_edge.size(0), neg_val_edge.size(0))), args.batch_size)
-        total_loss = 0
-        for _, edge_index in enumerate(dataloader):
-            pos_edge = pos_val_edge[edge_index]
-            neg_edge = neg_val_edge[edge_index]
-            
-            pos_score = pred(h[pos_edge[:, 0]], h[pos_edge[:, 1]])
-            neg_score = pred(h[neg_edge[:, 0]], h[neg_edge[:, 1]])
-            
-            if args.loss == 'auc':
-                loss = auc_loss(pos_score, neg_score, args.num_neg)
-            elif args.loss == 'hauc':
-                loss = hinge_auc_loss(pos_score, neg_score, args.num_neg)
-            elif args.loss == 'rank':
-                loss = log_rank_loss(pos_score, neg_score, args.num_neg)
-            else:
-                pos_loss = -F.logsigmoid(pos_score).mean()
-                neg_loss = -F.logsigmoid(-neg_score).mean()
-                loss = pos_loss + neg_loss
-            
-            total_loss += loss.item()
-    return total_loss / len(dataloader)
 
 def upload_to_huggingface(checkpoint_path, args):
     """
@@ -297,6 +309,7 @@ state_dict = torch.load(checkpoint_path)
     except Exception as e:
         print(f"❌ Error uploading to HuggingFace: {e}")
         print("Make sure you're logged in: huggingface-cli login --token YOUR_TOKEN")
+
 
 def eval(model, g, pos_train_edge, pos_valid_edge, neg_valid_edge, pred, embedding=None):
     model.eval()
