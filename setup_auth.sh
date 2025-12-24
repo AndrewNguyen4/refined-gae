@@ -49,7 +49,7 @@ else
     echo -e "${GREEN}✅ HF_TOKEN found in environment${NC}"
     # Login huggingface bằng token
     git config --global credential.helper store
-    huggingface-cli login --token "$HF_TOKEN" --add-to-git-credential
+    hf auth login --token "$HF_TOKEN" --add-to-git-credential
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✅ HuggingFace login successful!${NC}"
     else
