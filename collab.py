@@ -461,7 +461,7 @@ for epoch in range(args.epochs):
     train_losses.append(loss)
     
     # Compute validation loss
-    val_loss = compute_val_loss(model, graph, valid_pos_edge, valid_neg_edge, pred, embedding)
+    val_loss = compute_val_loss_collab(model, graph, valid_pos_edge, pred, neg_sampler, embedding)
     val_losses.append(val_loss)
     
     if epoch % args.interval == 0 and args.step_lr_decay:

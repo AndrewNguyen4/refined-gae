@@ -90,35 +90,35 @@ echo "======================"
 #   --wandb_run_name collab-baseline --save_model --hf_repo_id $HF_REPO_ID
 
 # # COLLAB Depth sweep 4 -> 5
-echo "=============================="
-echo "RUNNING COLLAB DEPTH SWEEP 5"
-echo "=============================="
-python collab.py \
-  --dataset ogbl-collab --lr 0.0004 --emb_hidden 0 --hidden 1024 \
-  --batch_size 16384 --dropout 0.2 --num_neg 3 --epochs 20 --prop_step 5 \
-  --metric hits@50 --mlp_layers 5 --res --norm --dp4norm 0.2 --scale \
-  --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
-  --wandb_run_name collab-depth-sweep-5 --save_model --hf_repo_id $HF_REPO_ID
+# echo "=============================="
+# echo "RUNNING COLLAB DEPTH SWEEP 5"
+# echo "=============================="
+# python collab.py \
+#   --dataset ogbl-collab --lr 0.0002 --loss rank --emb_hidden 256 --hidden 256 \
+#   --batch_size 32768 --dropout 0.5 --num_neg 6 --epochs 20 --prop_step 2 \
+#   --metric hits@50 --mlp_layers 5 --res --norm --relu --maskinput --drop_edge --dp4norm 0.2 --scale \
+#   --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
+#   --wandb_run_name collab-depth-sweep-5 --save_model --hf_repo_id $HF_REPO_ID
 
-# COLLAB Raw feature and embed
-echo "====================================="
-echo "RUNNING COLLAB RAW FEATURE AND EMBED"
-echo "====================================="
-python collab.py \
-  --dataset ogbl-collab --lr 0.0004 --emb_hidden 1024 --hidden 1024 \
-  --batch_size 16384 --dropout 0.2 --num_neg 3 --epochs 20 --prop_step 4 \
-  --metric hits@50 --mlp_layers 5 --res --norm --dp4norm 0.2 --scale \
-  --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
-  --wandb_run_name collab-raw-feat-and-embed --save_model --hf_repo_id $HF_REPO_ID
+# # COLLAB Raw feature and embed
+# echo "====================================="
+# echo "RUNNING COLLAB RAW FEATURE AND EMBED"
+# echo "====================================="
+# python collab.py \
+#   --dataset ogbl-collab --lr 0.0004 --emb_hidden 1024 --hidden 1024 \
+#   --batch_size 16384 --dropout 0.2 --num_neg 3 --epochs 20 --prop_step 4 \
+#   --metric hits@50 --mlp_layers 5 --res --norm --dp4norm 0.2 --scale \
+#   --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
+#   --wandb_run_name collab-raw-feat-and-embed --save_model --hf_repo_id $HF_REPO_ID
 
-# COLLAB Embed, no raw feature
+# # COLLAB Embed, no raw feature
 echo "=================================="
 echo "RUNNING COLLAB EMBED NO RAW FEATURE"
 echo "=================================="
 python train_wo_feat.py \
-  --dataset ogbl-collab --lr 0.0004 --hidden 1024 --batch_size 16384 \
-  --dropout 0.2 --num_neg 3 --epochs 20 --prop_step 4 --metric hits@50 \
-  --residual 0.1 --maskinput --mlp_layers 5 --mlp_res --emb_dim 1024 \
+  --dataset ogbl-collab --lr 0.0002 --loss rank --hidden 512 --batch_size 32768 \
+  --dropout 0.5 --num_neg 7 --epochs 20 --prop_step 4 --metric hits@50 \
+  --residual 0.1 --maskinput --mlp_layers 5 --norm --relu --res --drop_edge --mlp_res --emb_dim 512 \
   --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
   --wandb_run_name collab-embed-no-raw-feat --save_model --hf_repo_id $HF_REPO_ID
 
