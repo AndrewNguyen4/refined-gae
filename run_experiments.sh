@@ -89,23 +89,23 @@ echo "======================================"
 #   --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
 #   --wandb_run_name collab-baseline --save_model --hf_repo_id $HF_REPO_ID
 
-# COLLAB Depth sweep 4 -> 5
-echo "=============================="
-echo "RUNNING COLLAB DEPTH SWEEP 4"
-echo "=============================="
-python collab.py \
-  --dataset ogbl-collab --lr 0.0002 --loss rank --emb_hidden 256 --hidden 256 \
-  --batch_size 32768 --dropout 0.5 --num_neg 6 --epochs 20 --prop_step 2 \
-  --metric hits@50 --mlp_layers 4 --res --norm --relu --maskinput --drop_edge --dp4norm 0.2 --scale \
-  --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
-  --wandb_run_name collab-depth-sweep-5 --save_model --hf_repo_id $HF_REPO_ID
+# # COLLAB Depth sweep 4 -> 5
+# echo "=============================="
+# echo "RUNNING COLLAB DEPTH SWEEP 4"
+# echo "=============================="
+# python collab.py \
+#   --dataset ogbl-collab --lr 0.0002 --loss rank --emb_hidden 256 --hidden 256 \
+#   --batch_size 32768 --dropout 0.5 --num_neg 6 --epochs 20 --prop_step 2 \
+#   --metric hits@50 --mlp_layers 4 --res --norm --relu --maskinput --drop_edge --dp4norm 0.2 --scale \
+#   --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
+#   --wandb_run_name collab-depth-sweep-5 --save_model --hf_repo_id $HF_REPO_ID
 
 # COLLAB Raw feature and embed
 echo "====================================="
 echo "RUNNING COLLAB RAW FEATURE AND EMBED"
 echo "====================================="
 python collab.py \
-  --dataset ogbl-collab --lr 0.0004 --loss rank --emb_hidden 1024 --hidden 1024 \
+  --dataset ogbl-collab --lr 0.0004 --loss rank --emb_hidden 1024 --hidden 1024 --batch_size 1024 \
   --batch_size 16384 --dropout 0.2 --num_neg 3 --epochs 20 --prop_step 4 \
   --metric hits@50 --mlp_layers 5 --res --norm --dp4norm 0.2 --scale \
   --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
