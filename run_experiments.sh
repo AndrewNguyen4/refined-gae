@@ -10,7 +10,7 @@ set -e
 WANDB_ENTITY="${WANDB_ENTITY:-refined-gae}"
 WANDB_PROJECT="${WANDB_PROJECT:-Refined-GAE}"
 HF_USERNAME="${HF_USERNAME}"
-HF_REPO_ID="${HF_REPO_ID:-batmangiaicuuthegioi/refined-gae-checkpoints}"  # Default repo nếu không set
+HF_REPO_ID="${HF_REPO_ID}" 
 
 echo ""
 echo "📊 Training configuration:"
