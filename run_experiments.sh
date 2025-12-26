@@ -79,15 +79,15 @@ echo "    OGBL-COLLAB EXPERIMENTS"
 echo "======================================"
 
 # COLLAB Baseline (yes feature, no embed)
-echo "======================"
-echo "RUNNING COLLAB BASELINE"
-echo "======================"
-python collab.py \
-  --dataset ogbl-collab --lr 0.0004 --emb_hidden 0 --hidden 1024 \
-  --batch_size 16384 --dropout 0.2 --num_neg 3 --epochs 20 --prop_step 4 \
-  --metric hits@50 --mlp_layers 5 --res --norm --dp4norm 0.2 --scale \
-  --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
-  --wandb_run_name collab-baseline --save_model --hf_repo_id $HF_REPO_ID
+# echo "======================"
+# echo "RUNNING COLLAB BASELINE"
+# echo "======================"
+# python collab.py \
+#   --dataset ogbl-collab --lr 0.0004 --emb_hidden 0 --hidden 1024 \
+#   --batch_size 16384 --dropout 0.2 --num_neg 3 --epochs 20 --prop_step 4 \
+#   --metric hits@50 --mlp_layers 5 --res --norm --dp4norm 0.2 --scale \
+#   --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
+#   --wandb_run_name collab-baseline --save_model --hf_repo_id $HF_REPO_ID
 
 # # COLLAB Depth sweep 4 -> 5
 # echo "=============================="
