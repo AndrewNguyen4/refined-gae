@@ -105,7 +105,7 @@ echo "====================================="
 echo "RUNNING COLLAB RAW FEATURE AND EMBED"
 echo "====================================="
 python collab.py \
-  --dataset ogbl-collab --lr 0.0004 --loss rank --emb_hidden 1024 --hidden 1024 --batch_size 128 \
+  --dataset ogbl-collab --lr 0.0004 --loss rank --emb_hidden 1024 --hidden 1024 --batch_size 16 \
   --batch_size 16384 --dropout 0.2 --num_neg 3 --epochs 20 --prop_step 4 \
   --metric hits@50 --mlp_layers 5 --res --norm --dp4norm 0.2 --scale \
   --wandb_entity $WANDB_ENTITY --wandb_project $WANDB_PROJECT \
